@@ -4,6 +4,9 @@
 // Particle orb · Audio-reactive · Tool router · Full capabilities
 // ═══════════════════════════════════════════════════════════════════
 import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from 'next/dynamic';
+
+const HolographicUI = dynamic(() => import('./components/HolographicUI'), { ssr: false });
 
 // ── Brain configs ─────────────────────────────────────────────────
 const BRAINS = {
@@ -194,13 +197,67 @@ Return ONLY JSON:
 If UI is involved, include:
 
 {
-  "ui_layout": {
-    "theme": "dark | light | neon | glass | minimal",
-    "layout": ["navbar", "sidebar", "editor", "preview", "terminal"],
-    "animation_level": "none | subtle | advanced",
-    "density": "compact | normal | spacious"
+  "ui_mode": "HOLOGRAPHIC_JARVIS",
+  "scene": {
+    "center_core": "NOVA AI orb (pulsing energy sphere)",
+    "camera": {
+      "position": [0, 2, 6],
+      "rotation": [0, 0, 0]
+    },
+    "lighting": [
+      "ambient neon blue glow",
+      "directional soft white key light",
+      "volumetric fog for depth"
+    ],
+    "objects": [
+      {
+        "type": "panel",
+        "name": "code_editor",
+        "position": [-2, 1, 0],
+        "rotation": [0, 0.3, 0]
+      },
+      {
+        "type": "panel",
+        "name": "preview_window",
+        "position": [2, 1, 0],
+        "rotation": [0, -0.3, 0]
+      },
+      {
+        "type": "panel",
+        "name": "terminal",
+        "position": [0, -1.5, -1],
+        "rotation": [0.2, 0, 0]
+      }
+    ]
+  },
+
+  "interaction_model": {
+    "hover_glow": true,
+    "voice_activation": true,
+    "gesture_navigation": false,
+    "click_focus_zoom": true
   }
 }
+
+---
+
+# BEHAVIOR RULES
+
+- Always think in 3D space (not UI boxes)
+- Everything must exist in spatial coordinates
+- UI elements must feel like floating holograms
+- Center focus is always NOVA core AI orb
+- Panels animate smoothly in and out
+
+---
+
+# OUTPUT STYLE
+
+When UI is requested:
+- Always return JSON scene graph
+- Always include object positions (x, y, z)
+- Always define lighting mood
+- Always define camera behavior
 
 ---
 
@@ -284,6 +341,7 @@ function detectIDEResponse(text) {
   try {
     const obj = JSON.parse(text.slice(start, end + 1));
     if (obj.mode && obj.file_changes) return obj;
+    if (obj.ui_mode === "HOLOGRAPHIC_JARVIS") return obj;
   } catch {}
   return null;
 }
@@ -992,7 +1050,12 @@ export default function NOVA() {
           art = { type: "file_change", path: result.path, action: result.action, content: result.content };
         }
       } else if (ideResponse) {
-        art = { type: "ide_project", mode: ideResponse.mode, summary: ideResponse.summary, file_changes: ideResponse.file_changes, notes: ideResponse.notes };
+        if (ideResponse.ui_mode === "HOLOGRAPHIC_JARVIS") {
+          setUiMode("holographic");
+          art = { type: "holographic_scene", scene: ideResponse.scene, interaction: ideResponse.interaction_model };
+        } else {
+          art = { type: "ide_project", mode: ideResponse.mode, summary: ideResponse.summary, file_changes: ideResponse.file_changes, notes: ideResponse.notes };
+        }
       } else {
         art = detectArtifact(raw);
       }
@@ -1181,6 +1244,15 @@ export default function NOVA() {
   const activeKey   = (brain==="groq"&&gs)||(brain==="anthropic"&&as_);
   const sdot        = !activeKey ? "so" : brain==="groq" ? "sq" : "sa";
   const AICON       = { image:"🖼 IMAGE", html:"🌐 WEBSITE", threejs:"🧊 3D SCENE" };
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  if (uiMode === "holographic") {
+    return <HolographicUI setUiMode={setUiMode} />;
+  }
 
   return (
     <>
