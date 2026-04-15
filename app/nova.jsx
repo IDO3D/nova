@@ -24,10 +24,175 @@ const SILENCE  = 5000;
 const WAKE     = ["nova","hey nova","let's go live","lets go live","sequence initiated"];
 const STOPS    = ["stop","quiet","pause","shut up","silence","cancel"];
 
-// ── NOVA GOD PROMPT ───────────────────────────────────────────────
-const GOD_PROMPT = (mem) => `You are NOVA — an advanced multimodal AI agent. Not a chatbot. An autonomous creative intelligence.
+const TOOLS = [
+  {
+    name: "generate_image",
+    description: "Creates cinematic UI mockups or visuals",
+    input_schema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string" },
+        style: { type: "string" }
+      },
+      required: ["prompt"]
+    }
+  },
+  {
+    name: "generate_voice",
+    description: "Text-to-speech generation",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+        voice: { type: "string" }
+      },
+      required: ["text"]
+    }
+  },
+  {
+    name: "generate_3d_scene",
+    description: "Creates Three.js / WebGL scene logic",
+    input_schema: {
+      type: "object",
+      properties: {
+        scene_description: { type: "string" },
+        complexity: { type: "string" }
+      },
+      required: ["scene_description"]
+    }
+  },
+  {
+    name: "compute",
+    description: "Handles calculations or logic",
+    input_schema: {
+      type: "object",
+      properties: {
+        expression: { type: "string" }
+      },
+      required: ["expression"]
+    }
+  }
+];
 
-You can: generate intelligent responses, create images, build websites, create 3D scenes, write and execute code concepts, analyze business strategy, produce content plans, and route tasks to tools.
+// ── NOVA GOD PROMPT ───────────────────────────────────────────────
+const GOD_PROMPT = (mem) => `You are NOVA, an autonomous AI software engineering agent.
+
+You are NOT a chatbot.
+
+You are a senior-level full-stack web engineer + 3D simulation designer capable of building production-ready applications.
+
+---
+
+# CORE CAPABILITIES
+
+You can:
+- Build full HTML5 websites (clean, modern, responsive)
+- Write advanced JavaScript applications
+- Use Three.js for 3D environments and simulations
+- Create interactive UI/UX systems
+- Generate React-style component architecture (when requested)
+- Design game-like web experiences
+- Structure deployable frontend projects
+
+---
+
+# THINKING STYLE
+
+Always behave like a senior engineer:
+
+1. Understand the goal
+2. Design architecture
+3. Break into components
+4. Choose correct tech (HTML, CSS, JS, Three.js)
+5. Generate clean production-grade code
+6. Ensure everything runs without missing dependencies
+
+---
+
+# OUTPUT RULES
+
+When user requests code:
+
+- Always output COMPLETE working files
+- Always include file structure
+- Never omit dependencies
+- Never give partial snippets unless requested
+- Prefer simplicity + production readiness
+
+---
+
+# WEB DEVELOPMENT RULES
+
+When building websites:
+
+You MUST include:
+- index.html
+- style.css
+- script.js
+
+If advanced:
+- modular JS structure
+- reusable components
+- animations (CSS or JS)
+- responsive design
+- modern UI (glassmorphism / clean SaaS style if appropriate)
+
+---
+
+# THREE.JS RULES (IMPORTANT)
+
+When generating 3D scenes:
+
+You MUST include:
+- Scene setup
+- Camera setup
+- Lighting system
+- Geometry + materials
+- Animation loop
+- Controls (OrbitControls if needed)
+
+Always assume:
+- performance matters
+- scene must be interactive
+- code must run in browser directly
+
+---
+
+# TOOL USAGE
+
+You may still use tools:
+- generate_image
+- generate_voice
+- generate_3d_scene
+- compute
+
+BUT for web development:
+→ prioritize code output instead of tools
+
+---
+
+# OUTPUT FORMAT
+
+For coding tasks:
+
+1. Short explanation (optional)
+2. File structure
+3. Full code blocks per file
+4. How to run
+
+---
+
+You are NOVA — a web-native AI engineering system capable of generating full digital worlds.
+
+TOOLS:
+- generate_image: creates cinematic UI mockups or visuals
+- generate_voice: converts text to natural spoken audio
+- generate_3d_scene: creates Three.js / WebGL scene logic
+- compute: handles calculations or logic
+
+When you want to perform a tool action, return only a JSON object with exactly this shape:
+{"tool":"<tool_name>","input":{...}}
+Do not add extra explanation in the tool call response.
 
 CAPABILITIES:
 - Text: Deep analysis, strategy, code, creative writing, research
@@ -43,6 +208,7 @@ RULES:
 - For images use exactly: [IMAGE: detailed cinematic description]
 - For websites provide complete working HTML
 - For 3D provide Three.js scene code (scene/camera/renderer already exist)
+- For tool calls, respond in strict JSON with tool and input only
 - Be cinematic and futuristic in creative work
 - Never hallucinate tool results — describe what will happen
 
@@ -80,6 +246,61 @@ ${code}
 function animate(){requestAnimationFrame(animate);renderer.render(scene,camera);}animate();
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 </script></body></html>`;
+}
+
+function extractJsonObject(text) {
+  const start = text.indexOf("{");
+  const end   = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function detectToolCall(text) {
+  const obj = extractJsonObject(text);
+  if (!obj || !obj.tool || !obj.input) return null;
+  return obj;
+}
+
+function evaluateExpression(expression) {
+  try {
+    // eslint-disable-next-line no-new-func
+    const fn = new Function(`return (${expression})`);
+    return fn();
+  } catch (e) {
+    return `Error evaluating expression: ${e.message}`;
+  }
+}
+
+async function executeTool(call) {
+  switch (call.tool) {
+    case "generate_image":
+      return { type: "image", prompt: call.input.prompt };
+    case "generate_voice":
+      return { type: "voice", text: call.input.text, voice: call.input.voice || "nova" };
+    case "generate_3d_scene":
+      // Generate Three.js scene code based on description
+      const complexity = call.input.complexity || "medium";
+      let code = `// Three.js Scene: ${call.input.scene_description}\n`;
+      code += `// Complexity: ${complexity}\n`;
+      code += `// Scene setup\nconst scene = new THREE.Scene();\n`;
+      code += `const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);\n`;
+      code += `const renderer = new THREE.WebGLRenderer({ antialias: true });\n`;
+      code += `renderer.setSize(window.innerWidth, window.innerHeight);\n`;
+      code += `document.body.appendChild(renderer.domElement);\n`;
+      code += `camera.position.z = 5;\n`;
+      code += `// Lighting\nconst ambientLight = new THREE.AmbientLight(0x404040, 0.6);\nscene.add(ambientLight);\n`;
+      code += `const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);\ndirectionalLight.position.set(1, 1, 1);\nscene.add(directionalLight);\n`;
+      code += `// Animation loop\nfunction animate() {\n  requestAnimationFrame(animate);\n  renderer.render(scene, camera);\n}\nanimate();\n`;
+      return { type: "threejs", code };
+    case "compute":
+      return { type: "text", text: `Compute result: ${evaluateExpression(call.input.expression)}` };
+    default:
+      return { type: "text", text: `Unknown tool: ${call.tool}` };
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -548,16 +769,29 @@ export default function NOVA() {
     if (d < 160) msgsEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [msgs, typing]);
 
-  // Load keys
+  // Load keys from localStorage or public environment variables
   useEffect(() => {
-    const g = localStorage.getItem("nova_groq");
-    const a = localStorage.getItem("nova_ak");
-    const e = localStorage.getItem("nova_el");
-    const b = localStorage.getItem("nova_brain") || "groq";
-    if (g) { gkRef.current=g; setGs(true); setGi("●".repeat(20)); }
-    if (a) { akRef.current=a; setAs(true); setAi("●".repeat(20)); }
-    if (e) { elRef.current=e; setEs(true); setEi("●".repeat(20)); setVoiceOn(true); voiceRef.current=true; }
+    const envGroq     = process.env.NEXT_PUBLIC_GROQ_KEY;
+    const envAnthropic= process.env.NEXT_PUBLIC_ANTHROPIC_KEY;
+    const envEleven   = process.env.NEXT_PUBLIC_ELEVENLABS_KEY;
+    const envAuto     = process.env.NEXT_PUBLIC_NOVA_AUTONOMOUS === "true";
+
+    const g = localStorage.getItem("nova_groq") || envGroq;
+    const a = localStorage.getItem("nova_ak") || envAnthropic;
+    const e = localStorage.getItem("nova_el") || envEleven;
+    const b = localStorage.getItem("nova_brain") || (a ? "anthropic" : "groq");
+
+    if (g) { gkRef.current = g; setGs(true); setGi("●".repeat(20)); }
+    if (a) { akRef.current = a; setAs(true); setAi("●".repeat(20)); }
+    if (e) { elRef.current = e; setEs(true); setEi("●".repeat(20)); setVoiceOn(true); voiceRef.current = true; }
+
     setBrain(b); brainRef.current = b;
+
+    if (envGroq && !localStorage.getItem("nova_groq")) localStorage.setItem("nova_groq", envGroq);
+    if (envAnthropic && !localStorage.getItem("nova_ak")) localStorage.setItem("nova_ak", envAnthropic);
+    if (envEleven && !localStorage.getItem("nova_el")) localStorage.setItem("nova_el", envEleven);
+    if (envAuto) localStorage.setItem("nova_autonomous", "true");
+
     // Check mic permission
     navigator.permissions?.query({name:"microphone"}).then(r => {
       setMicPerm(r.state);
@@ -671,11 +905,30 @@ export default function NOVA() {
       const raw  = await callBrain(newH);
       histRef.current = [...newH, {role:"assistant",content:raw}];
       setTyping(false);
-      const art   = detectArtifact(raw);
-      const clean = stripArtifact(raw) || "Done — check the artifact panel.";
+
+      const toolCall = detectToolCall(raw);
+      let art   = null;
+      let clean = stripArtifact(raw) || "Done — check the artifact panel.";
+      let toolResultText = null;
+
+      if (toolCall) {
+        const result = await executeTool(toolCall);
+        if (result.type === "image") {
+          art = { type: "image", prompt: result.prompt };
+        } else if (result.type === "threejs") {
+          art = { type: "threejs", code: result.code };
+        } else if (result.type === "voice") {
+          toolResultText = result.text;
+        } else if (result.type === "text") {
+          toolResultText = result.text;
+        }
+      } else {
+        art = detectArtifact(raw);
+      }
+
+      const displayText = toolResultText || clean;
 
       if (art) {
-        const newIdx = artCountRef.current;
         artCountRef.current += 1;
         setArts(prev => [...prev, art]);
         setArtIdx(artCountRef.current - 1);
@@ -686,9 +939,9 @@ export default function NOVA() {
       const artType = art?.type;
 
       setMsgs(m => {
-        const next = [...m, {role:"nova", text:clean, brain:cb, hasArt, artType}];
+        const next = [...m, {role:"nova", text:displayText, brain:cb, hasArt, artType}];
         const idx  = next.length - 1;
-        if (voiceRef.current && elRef.current) setTimeout(() => speak(clean, idx), 60);
+        if (voiceRef.current && elRef.current) setTimeout(() => speak(displayText, idx), 60);
         else { setS("idle"); resumeRef.current?.(); }
         return next;
       });
@@ -811,12 +1064,13 @@ export default function NOVA() {
 
   useEffect(() => { resumeRef.current = resumeWake; }, [resumeWake]);
 
-  // Start wake word once a brain key is set
+  // Start wake word once a brain key or autonomous mode is enabled
   const anyKey = (gkRef.current || akRef.current);
   useEffect(() => {
-    const g = localStorage.getItem("nova_groq");
-    const a = localStorage.getItem("nova_ak");
-    if (g || a) setTimeout(resumeWake, 1500);
+    const g    = localStorage.getItem("nova_groq");
+    const a    = localStorage.getItem("nova_ak");
+    const auto = localStorage.getItem("nova_autonomous") === "true" || process.env.NEXT_PUBLIC_NOVA_AUTONOMOUS === "true";
+    if (g || a || auto) setTimeout(resumeWake, 1500);
   }, []);
 
   // Cleanup

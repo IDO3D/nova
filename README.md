@@ -64,10 +64,12 @@ vercel --prod
 1. Push this folder to a GitHub repo
 2. Go to vercel.com → New Project → Import your repo
 3. Add environment variables in Vercel dashboard:
+   - NEXT_PUBLIC_GROQ_KEY
    - NEXT_PUBLIC_ANTHROPIC_KEY
    - NEXT_PUBLIC_ELEVENLABS_KEY
    - NEXT_PUBLIC_SUPABASE_URL
    - NEXT_PUBLIC_SUPABASE_ANON_KEY
+   - NEXT_PUBLIC_NOVA_AUTONOMOUS=true
 4. Deploy
 
 ---
