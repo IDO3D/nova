@@ -86,7 +86,7 @@ export default function HolographicUI({ setUiMode }) {
     <>
       <div ref={mountRef} style={{ width: '100vw', height: '100vh' }} />
       <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000 }}>
-        <button onClick={() => setUiMode('normal')} style={{ padding: '10px', background: 'rgba(0,255,255,0.5)', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer' }}>Exit Holographic</button>
+        <button onClick={() => setUiMode('normal')} style={{ padding: '10px', background: 'rgba(0,255,255,0.5)', border: 'none', borderRadius: '5px', color: 'white', cursor: 'pointer' }}>Open NOVA Interface</button>
       </div>
     </>
   );

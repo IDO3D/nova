@@ -107,6 +107,67 @@ const TOOLS = [
         entry: { type: "string", default: "/index.html" }
       }
     }
+  },
+  {
+    name: "github_deploy",
+    description: "Deploys code to GitHub or triggers a deployment workflow",
+    input_schema: {
+      type: "object",
+      properties: {
+        repo: { type: "string" },
+        branch: { type: "string" },
+        action: { type: "string" }
+      },
+      required: ["repo", "action"]
+    }
+  },
+  {
+    name: "google_calendar",
+    description: "Connects to Google Calendar for scheduling and reminders",
+    input_schema: {
+      type: "object",
+      properties: {
+        action: { type: "string" },
+        event: { type: "string" },
+        time: { type: "string" }
+      },
+      required: ["action"]
+    }
+  },
+  {
+    name: "notion_sync",
+    description: "Syncs notes and tasks with a Notion-like workspace",
+    input_schema: {
+      type: "object",
+      properties: {
+        page: { type: "string" },
+        content: { type: "string" }
+      },
+      required: ["page", "content"]
+    }
+  },
+  {
+    name: "weather_context",
+    description: "Adds weather or location-aware context to decisions",
+    input_schema: {
+      type: "object",
+      properties: {
+        location: { type: "string" },
+        date: { type: "string" }
+      }
+    }
+  },
+  {
+    name: "browser_automation",
+    description: "Triggers browser automation actions for testing or exploration",
+    input_schema: {
+      type: "object",
+      properties: {
+        script: { type: "string" },
+        target: { type: "string" }
+      },
+      required: ["script"]
+    }
   }
 ];
 
@@ -335,6 +396,53 @@ Tailwind or custom neon glass UI
 
 ---
 
+MEMORY SYSTEM
+
+You maintain:
+- short-term memory (current session thinking)
+- long-term memory (user habits, goals, preferences)
+- project memory (ongoing build state)
+- behavior memory (interaction style, preferred formats)
+
+AGENT BRAIN
+
+You break goals into prioritized steps, detect dependencies, and create executable plans.
+
+LOOP EXECUTION ENGINE
+
+Follow this cycle:
+THINK → PLAN → ACT → VERIFY → REFLECT → REPEAT
+
+Always verify outputs, detect errors, and retry when needed.
+
+REAL-TIME TOOL CONNECTOR LAYER
+
+Connect to tools and APIs such as:
+Google Calendar, Notion, GitHub, OpenAI/Claude tools, Weather, Playwright, Spotify, YouTube.
+
+IDE MODE
+
+Support an interactive IDE with:
+AI editor, file system view, live preview, terminal, version history.
+
+SELF-IMPROVEMENT MODULE
+
+Detect repeated mistakes, improve workflow prompts internally, and optimize code output style.
+
+HOLOGRAPHIC JARVIS UI
+
+Use rotating core, pulse waves, floating task nodes, and layered holographic panels.
+
+SECURITY + IDENTITY SYSTEM
+
+Require consent for sensitive actions, log audit events, and support rollback/undo.
+
+VOICE + MULTIMODAL SYSTEM
+
+Include speech input/output, image understanding, and 3D scene generation from text.
+
+---
+
 FINAL OUTPUT STYLE
 
 Always respond in this format:
@@ -357,6 +465,68 @@ You are:
 You build systems, not answers.
 
 ${mem ? `\n\nMEMORY:\n${mem}` : ''}`;
+
+function formatMemory(mem) {
+  if (!mem) return "";
+  if (typeof mem === "string") return mem;
+  const lines = [];
+  if (mem.short_term && mem.short_term.length) {
+    lines.push("SHORT_TERM_MEMORY:\n" + mem.short_term.slice(-20).map((item, idx) => `${idx + 1}. ${item}`).join("\n"));
+  }
+  if (mem.long_term && Object.keys(mem.long_term).length) {
+    lines.push("LONG_TERM_MEMORY:\n" + Object.entries(mem.long_term).map(([k, v]) => `- ${k}: ${Array.isArray(v) ? v.join(", ") : v}`).join("\n"));
+  }
+  if (mem.project_memory && Object.keys(mem.project_memory).length) {
+    lines.push("PROJECT_MEMORY:\n" + Object.entries(mem.project_memory).map(([k, v]) => `- ${k}: ${JSON.stringify(v)}`).join("\n"));
+  }
+  if (mem.behavior && Object.keys(mem.behavior).length) {
+    lines.push("BEHAVIOR_MEMORY:\n" + Object.entries(mem.behavior).map(([k, v]) => `- ${k}: ${v}`).join("\n"));
+  }
+  return lines.join("\n\n");
+}
+
+function saveAgentMemory(mem) {
+  try {
+    localStorage.setItem("nova_memory", JSON.stringify(mem));
+  } catch {}
+}
+
+function hydrateAgentMemory() {
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem("nova_memory") || "null");
+  } catch {}
+  if (saved && typeof saved === "object") return saved;
+  return {
+    short_term: [],
+    long_term: {
+      user_goal: "",
+      preferred_ui_style: "dark futuristic neon",
+      working_projects: []
+    },
+    project_memory: {},
+    behavior: {
+      preferred_ui_style: "dark futuristic neon",
+      task_flow: "plan-first"
+    }
+  };
+}
+
+function appendAgentMemory(mem, category, entry) {
+  if (!mem) return mem;
+  const next = { ...mem };
+  if (category === "short_term") {
+    next.short_term = [...(next.short_term || []), entry].slice(-50);
+  } else if (category === "long_term") {
+    next.long_term = { ...(next.long_term || {}), ...entry };
+  } else if (category === "project_memory") {
+    next.project_memory = { ...(next.project_memory || {}), ...entry };
+  } else if (category === "behavior") {
+    next.behavior = { ...(next.behavior || {}), ...entry };
+  }
+  saveAgentMemory(next);
+  return next;
+}
 
 // ── Artifact detection ────────────────────────────────────────────
 function detectArtifact(text) {
@@ -460,6 +630,16 @@ async function executeTool(call) {
       return { type: "text", text: `Project analysis: ${call.input.request} - Analysis complete.` };
     case "run_preview":
       return { type: "text", text: `Preview simulation: Running ${call.input.entry || '/index.html'} in browser.` };
+    case "github_deploy":
+      return { type: "text", text: `GitHub deploy simulated for ${call.input.repo} on branch ${call.input.branch || 'main'} with action ${call.input.action}.` };
+    case "google_calendar":
+      return { type: "text", text: `Google Calendar action: ${call.input.action}${call.input.event ? ` for ${call.input.event}` : ''}${call.input.time ? ` at ${call.input.time}` : ''}.` };
+    case "notion_sync":
+      return { type: "text", text: `Notion sync completed for page ${call.input.page}. Content length: ${call.input.content?.length || 0}.` };
+    case "weather_context":
+      return { type: "text", text: `Weather context loaded for ${call.input.location || 'current location'} on ${call.input.date || 'today'}.` };
+    case "browser_automation":
+      return { type: "text", text: `Browser automation script queued for target ${call.input.target || 'browser'}: ${call.input.script.slice(0,80)}...` };
     default:
       return { type: "text", text: `Unknown tool: ${call.tool}` };
   }
@@ -896,6 +1076,22 @@ export default function NOVA() {
   const [showArt,   setShowArt]   = useState(false);
   const artCountRef = useRef(0);
 
+  const [appUiMode, setAppUiMode] = useState("holographic");
+  const [memoryState, setMemoryState] = useState({
+    short_term: [],
+    long_term: { user_goal:"", preferred_ui_style:"dark futuristic neon", working_projects:[] },
+    project_memory: {},
+    behavior: { preferred_ui_style:"dark futuristic neon", task_flow:"plan-first" }
+  });
+  const [plannerState, setPlannerState] = useState({ goal:"", steps:[], currentStep:0, status:"idle", reflection:"" });
+  const [projectFiles, setProjectFiles] = useState([
+    { path: "/index.html", content: "<!DOCTYPE html><html><head><meta charset='utf-8'><title>NOVA IDE</title></head><body><div id='app'></div></body></html>" },
+    { path: "/style.css", content: "body{margin:0;background:#05060A;color:#fff;font-family:system-ui, sans-serif;}" },
+    { path: "/app.js", content: "document.body.style.backgroundColor='#05060A';console.log('NOVA IDE initialized');" }
+  ]);
+  const [activeFile, setActiveFile] = useState("/index.html");
+  const [ideLog, setIdeLog] = useState("");
+
   // ── Voice state ────────────────────────────────────────────────
   const [state,    setState]    = useState("idle");
   const [txText,   setTxText]   = useState("");
@@ -921,6 +1117,13 @@ export default function NOVA() {
   const levelAnimRef = useRef(null);
 
   const setS = (s) => { stateRef.current = s; setState(s); };
+  const addMemory = useCallback((category, entry) => {
+    setMemoryState(prev => appendAgentMemory(prev, category, entry));
+  }, []);
+  const setAgentPlanner = useCallback((update) => {
+    setPlannerState(prev => ({ ...prev, ...update }));
+  }, []);
+
   useEffect(() => { voiceRef.current = voiceOn; }, [voiceOn]);
   useEffect(() => { brainRef.current = brain; }, [brain]);
 
@@ -960,6 +1163,28 @@ export default function NOVA() {
       r.onchange = () => setMicPerm(r.state);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("nova_memory");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === "object") {
+          setMemoryState(parsed);
+          memRef.current = parsed;
+        }
+      } catch {}
+    } else {
+      memRef.current = memoryState;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (memoryState) {
+      memRef.current = memoryState;
+      saveAgentMemory(memoryState);
+    }
+  }, [memoryState]);
 
   // ── Audio level meter ──────────────────────────────────────────
   const startAudioMeter = useCallback(async () => {
@@ -1013,7 +1238,7 @@ export default function NOVA() {
       const res = await fetch(cfg.url, {
         method:"POST",
         headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${key}` },
-        body: JSON.stringify({ model:cfg.model, messages:[{role:"system",content:GOD_PROMPT(memRef.current)},...messages], max_tokens:4096, temperature:0.8 })
+        body: JSON.stringify({ model:cfg.model, messages:[{role:"system",content:GOD_PROMPT(formatMemory(memRef.current))},...messages], max_tokens:4096, temperature:0.8 })
       });
       const d = await res.json();
       if (d.error) throw new Error(d.error.message);
@@ -1022,13 +1247,51 @@ export default function NOVA() {
       const res = await fetch(cfg.url, {
         method:"POST",
         headers:{ "Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model:cfg.model, max_tokens:4096, system:GOD_PROMPT(memRef.current), messages })
+        body: JSON.stringify({ model:cfg.model, max_tokens:4096, system:GOD_PROMPT(formatMemory(memRef.current)), messages })
       });
       const d = await res.json();
       if (d.error) throw new Error(d.error.message);
       return d.content[0].text;
     }
   }, []);
+
+  const generateAgentPlan = useCallback(async (goal) => {
+    setAgentPlanner({ goal, status: "planning", steps: [], currentStep: 0, reflection: "" });
+    const prompt = `You are an autonomous planning engine. Break the goal into a prioritized, dependency-aware execution plan. Return only JSON with goal, steps, and dependencies.`;
+    const raw = await callBrain([{ role: "user", content: `${prompt}\n\nGoal: ${goal}` }]);
+    const obj = extractJsonObject(raw);
+    const plan = obj?.steps ? obj : { goal, steps: ["Analyze requirements", "Design UI", "Build core features", "Test", "Deploy"], dependencies: [] };
+    setAgentPlanner({ goal: plan.goal || goal, steps: plan.steps || [], status: "ready", reflection: "Plan generated" });
+    addMemory("short_term", `Generated plan for: ${goal}`);
+    return plan;
+  }, [callBrain, setAgentPlanner, addMemory]);
+
+  const executeAgentStep = useCallback(async (step, index) => {
+    setAgentPlanner({ currentStep: index, status: "acting" });
+    const stepPrompt = `Execute this step in a development workflow and return a brief result with any next verification action: ${step}`;
+    const raw = await callBrain([{ role: "user", content: stepPrompt }]);
+    const result = stripArtifact(raw) || raw;
+    addMemory("short_term", `Step ${index + 1}: ${step} → ${result}`);
+    setIdeLog(log => `${log}\n[STEP ${index + 1}] ${step}: ${result}`);
+    setAgentPlanner({ status: "verifying" });
+    return result;
+  }, [callBrain, addMemory]);
+
+  const runAutonomyLoop = useCallback(async (goal) => {
+    try {
+      setAgentPlanner({ ...plannerState, status: "thinking" });
+      const plan = await generateAgentPlan(goal);
+      for (let i = 0; i < plan.steps.length; i += 1) {
+        await executeAgentStep(plan.steps[i], i);
+        setAgentPlanner({ status: "verify" });
+      }
+      setAgentPlanner({ status: "complete", reflection: "Execution loop finished" });
+      addMemory("behavior", { last_autonomy_goal: goal });
+    } catch (err) {
+      setAgentPlanner({ status: "error", reflection: err.message });
+      addMemory("behavior", { last_error: err.message });
+    }
+  }, [generateAgentPlan, executeAgentStep, plannerState, addMemory]);
 
   // ── TTS ────────────────────────────────────────────────────────
   const speak = useCallback(async (text, idx) => {
@@ -1061,11 +1324,13 @@ export default function NOVA() {
     setS("thinking"); setTxText(""); accRef.current = "";
     const newH = [...histRef.current, {role:"user",content:text}];
     histRef.current = newH;
+    addMemory("short_term", `User: ${text}`);
     setMsgs(m => [...m, {role:"user", text, brain:cb}]);
     setTyping(true);
     try {
       const raw  = await callBrain(newH);
       histRef.current = [...newH, {role:"assistant",content:raw}];
+      addMemory("short_term", `NOVA: ${stripArtifact(raw) || raw}`);
       setTyping(false);
 
       const toolCall = detectToolCall(raw);
@@ -1089,7 +1354,7 @@ export default function NOVA() {
         }
       } else if (ideResponse) {
         if (ideResponse.ui_mode === "HOLOGRAPHIC_JARVIS") {
-          setUiMode("holographic");
+          setAppUiMode("holographic");
           art = { type: "holographic_scene", scene: ideResponse.scene, interaction: ideResponse.interaction_model };
         } else {
           art = { type: "ide_project", mode: ideResponse.mode, summary: ideResponse.summary, file_changes: ideResponse.file_changes, notes: ideResponse.notes };
@@ -1288,8 +1553,8 @@ export default function NOVA() {
 
   if (!mounted) return null;
 
-  if (uiMode === "holographic") {
-    return <HolographicUI setUiMode={setUiMode} />;
+  if (appUiMode === "holographic") {
+    return <HolographicUI setUiMode={setAppUiMode} />;
   }
 
   return (
