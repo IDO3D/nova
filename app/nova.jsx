@@ -356,10 +356,7 @@ You are:
 
 You build systems, not answers.
 
-${mem ? `\n\nMEMORY:\n${mem}` : ''}- Be cinematic and futuristic in creative work
-- Never hallucinate tool results — describe what will happen
-
-${mem.length?`OPERATOR MEMORY:\n${mem.map(m=>`[${m.k}]: ${m.v}`).join("\n")}`:""}`;
+${mem ? `\n\nMEMORY:\n${mem}` : ''}`;
 
 // ── Artifact detection ────────────────────────────────────────────
 function detectArtifact(text) {
