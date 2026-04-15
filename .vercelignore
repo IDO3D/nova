@@ -1,0 +1,10 @@
+node_modules
+.next
+.DS_Store
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+.vscode
+*.env
+.env.local
+.env.*.local
